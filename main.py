@@ -24,25 +24,32 @@ def send_line_message(user_id: str, message: str):
         }]
     }
     
-    response = requests.post(LINE_API_URL, headers=headers, data=json.dumps(data))
-    if response.status_code != 200:
-        print(f"Error sending message: {response.status_code}")
-        print(response.text)
+    try:
+        response = requests.post(LINE_API_URL, headers=headers, data=json.dumps(data))
+        response.raise_for_status()  # จะโยนข้อผิดพลาดหากสถานะไม่ใช่ 200
+        print("Message sent successfully!")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending message: {e}")
 
 # รับข้อมูลจาก webhook และส่งข้อความแจ้งเตือนไปยังแอดมิน
 @app.post("/webhook")
 async def webhook(request: Request):
-    body = await request.json()
+    try:
+        body = await request.json()
 
-    # ตรวจสอบว่ามีข้อมูลจากฟอร์มส่งมาใน webhook
-    if "events" in body:
-        for event in body["events"]:
-            if event.get("type") == "message":
-                # ข้อมูลที่ได้รับจากข้อความ
-                user_id = event["source"]["userId"]
-                message_text = event["message"]["text"]
-                
-                # ส่งข้อความแจ้งเตือนให้แอดมิน
-                send_line_message(ADMIN_USER_ID, f"จาก User ID: {user_id}\nข้อความที่ส่ง: {message_text}")
+        # ตรวจสอบว่ามีข้อมูลจากฟอร์มส่งมาใน webhook
+        if "events" in body:
+            for event in body["events"]:
+                if event.get("type") == "message":
+                    # ข้อมูลที่ได้รับจากข้อความ
+                    user_id = event["source"]["userId"]
+                    message_text = event["message"]["text"]
+                    
+                    # ส่งข้อความแจ้งเตือนให้แอดมิน
+                    send_line_message(ADMIN_USER_ID, f"จาก User ID: {user_id}\nข้อความที่ส่ง: {message_text}")
 
-    return {"status": "success", "message": "Webhook ได้รับข้อมูลแล้ว"}
+        return {"status": "success", "message": "Webhook ได้รับข้อมูลแล้ว"}
+    
+    except Exception as e:
+        print(f"Error in webhook processing: {e}")
+        return {"status": "error", "message": "ไม่สามารถประมวลผลคำขอได้"}
